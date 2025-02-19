@@ -47,7 +47,7 @@ function App() {
     <div>
       <h1>Task Manager</h1>
       <TaskForm addTask={addTask}></TaskForm>
-      <TaskList editOpen={editOpen} setEditOpen={setEditOpen} editTask={editTask} tasks={tasks} toggleTask={toggleTask} deleteTask={deleteTask}></TaskList>
+      <TaskList  editTask={editTask} tasks={tasks} toggleTask={toggleTask} deleteTask={deleteTask}></TaskList>
     </div>
   )
 }
