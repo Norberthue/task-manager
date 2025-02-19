@@ -5,16 +5,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface TaskListProps {
     tasks: Task[];
-    toggleTask: (id: number) => void;
-    deleteTask: (id: number) => void;
-    editTask: (id: number, newTask: string) => void;
+    toggleTask: (id: string) => void;
+    deleteTask: (id: string) => void;
+    editTask: (id: string, newTask: string) => void;
 }
 
 function TaskList({ tasks, toggleTask, deleteTask, editTask }: TaskListProps) {
     const [editedTask, setEditedTask] = useState('');
-    const [editId, setEditId] = useState<number | null>(null);
+    const [editId, setEditId] = useState<string | null>(null);
     
-    const handleKeyDown = (e: React.KeyboardEvent, id: number) => {
+    const handleKeyDown = (e: React.KeyboardEvent, id: string) => {
         if (e.key === 'Enter') {
             setEditId(null);
             editTask(id, editedTask);
@@ -22,7 +22,7 @@ function TaskList({ tasks, toggleTask, deleteTask, editTask }: TaskListProps) {
             setEditId(null);
           }
     }
-
+ 
 
     return (
         <div className='max-w-lg mx-auto mt-6 bg-white shadow-lg rounded-lg p-6'>
