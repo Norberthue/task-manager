@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface TaskListProps {
     tasks: Task[];
-    toggleTask: (id: string) => void;
+    toggleTask: (id: string, completed: boolean) => void;
     deleteTask: (id: string) => void;
     editTask: (id: string, newTask: string) => void;
 }

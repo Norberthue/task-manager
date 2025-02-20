@@ -2,66 +2,102 @@ import { useEffect, useState } from 'react'
 import TaskList from './components/TaskList'
 import { Task} from './Types'
 import TaskForm from './components/TaskForm';
-import { db } from './firebaseConfig';
-import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import Auth from './components/Auth';
+import { db, auth } from './firebaseConfig';
+import { signOut } from 'firebase/auth';
+
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where } from "firebase/firestore";
+
 
 
 function App() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [editOpen, setEditOpen] = useState(false);
+  const [user, setUser] = useState(auth.currentUser);
+  const  [tasks, setTasks] = useState<Task[]>([]);
+  const [newTask, setNewTask] = useState("");
   
-  //fetch tasks from firebase
-  useEffect(() => {
-    const fetchTasks = async () => {
-      const querySnapshot = await getDocs(collection(db, "tasks"));
-      const fetchedTasks: Task[] = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        title: doc.data().title,
-        completed: doc.data().completed,
-      }));
-      setTasks(fetchedTasks);
-    }
+  // collect data for user
+  const tasksCollection = collection(db, "tasks");
 
-    fetchTasks();
-  }, []);
-
- // Add task to Firestore
-  const addTask = async (title: string) => {
-    const docRef = await addDoc(collection(db, "tasks"), { title, completed: false });
-    setTasks([...tasks, { id: docRef.id, title, completed: false }]);
+   const getTasks = async () => {
+    const user = auth.currentUser;
+    if (!user) return [];
+  
+    const q = query(tasksCollection, where("userId", "==", user.uid));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   };
-
-  // Toggle task completion in Firestore
-  const toggleTask = async (id: string) => {
-    const taskRef = doc(db, "tasks", id);
+  
+   const addTask = async (title: string) => {
+    const user = auth.currentUser;
+    if (!user) return;
+  
+    await addDoc(tasksCollection, {
+      title,
+      completed: false,
+      userId: user.uid, // 🔥 Link task to the logged-in user
+    });
+    setTasks([...tasks, { id: user.uid, title, completed: false }]);
+  };
+  
+   const deleteTask = async (id: string) => {
+    await deleteDoc(doc(db, "tasks", id));
+    setTasks(tasks.filter((task) => task.id !== id));
+  };
+  
+   const editTask = async (id: string, newTitle: string) => {
+    await updateDoc(doc(db, "tasks", id), { title: newTitle });
+    setTasks(tasks.map((task) => (task.id === id ? { ...task, title: newTitle } : task)));
+  };
+  
+   const toggleTask = async (id: string, completed: boolean) => {
+    await updateDoc(doc(db, "tasks", id), { completed });
     const updatedTasks = tasks.map((task) =>
       task.id === id ? { ...task, completed: !task.completed } : task
     );
     setTasks(updatedTasks);
-    await updateDoc(taskRef, { completed: !tasks.find((task) => task.id === id)?.completed });
   };
 
-  // Edit task title in Firestore
-  const editTask = async (id: string, newTitle: string) => {
-    const taskRef = doc(db, "tasks", id);
-    setTasks(tasks.map((task) => (task.id === id ? { ...task, title: newTitle } : task)));
-    await updateDoc(taskRef, { title: newTitle });
+  //user authentication
+  useEffect(() => {
+    auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        fetchTasks();
+      } else {
+        setTasks([]);
+      }
+    });
+  }, []);
+
+  const fetchTasks = async () => {
+    const fetchedTasks = await getTasks();
+    setTasks(fetchedTasks);
   };
 
-  // Delete task from Firestore
-  const deleteTask = async (id: string) => {
-    const taskRef = doc(db, "tasks", id);
-    setTasks(tasks.filter((task) => task.id !== id));
-    await deleteDoc(taskRef);
+  const handleSignOut = async () => {
+    await signOut(auth);
+    setUser(null);
+    setTasks([]);
   };
 
   return (
-    <div>
-      <h1>Task Manager</h1>
-      <TaskForm addTask={addTask}></TaskForm>
-      <TaskList  editTask={editTask} tasks={tasks} toggleTask={toggleTask} deleteTask={deleteTask}></TaskList>
+    <div className="p-4 max-w-lg mx-auto">
+      {user ? (
+        <>
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold">Task Manager</h1>
+            <h2>{user.email}</h2>
+            <button onClick={handleSignOut} className="bg-red-500 text-white p-2">Logout</button>
+          </div>
+        <TaskForm addTask={addTask} />
+        <TaskList tasks={tasks} editTask={editTask} toggleTask={toggleTask} deleteTask={deleteTask} />
+        </>
+      ) : (
+        <Auth onAuthSuccess={() => setUser(auth.currentUser)} />
+      )}
     </div>
   )
 }
 
 export default App
+
